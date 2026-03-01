@@ -2,8 +2,13 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <iostream> 
+#include <iomanip>
 
 using namespace std;
+using json = nlohmann::json;
 
 class GraphInfo{
     public:
@@ -11,57 +16,45 @@ class GraphInfo{
     string article_name;
 };
 
-class GraphVertex{ // class with everything needed for graphs
+class Graph{ // class with everything needed for graphs
     public:
     vector<GraphInfo> info; // information about graph
-
-    vector<vector<int>> graph; // graphs without weight
-    
     vector<vector<pair<int, int>>> pair_graph; // graphs with weight
-    vector<vector<int>> graph_weight; // weight in grapths
-    
-    queue<int> graph_queue; // needed for grapth_tools (GraphTools)
-    vector<int> distans; // needed for algorithm
-    vector<int> visited; // needed for algorithm
+    bool direct; // is the graph directed or not?
 };
 
 namespace GraphTools {
-    void dfs(int start, GraphVertex& g){
-        g.visited[start] = 1;
 
-        for (int neighbor : g.graph[start]) {
-            if (g.visited[neighbor] == -1) dfs(neighbor, g);
+    void dfs(int start, Graph& g, vector<int>& visited){
+        visited[start] = 1;
+
+        for (auto& pair_neighbor : g.pair_graph[start]) {
+            if (visited[pair_neighbor.first] == -1) dfs(pair_neighbor.first, g, visited);
         }
     } 
-    // function is okey
-    // info: Variable 'visited' needs to be assigned with -1 first, and 
-    // it doesn't save information about the way it goes
+    
+    void bfs(int start, Graph& g, vector<int>& distans, queue<int>& graph_queue){ 
+        graph_queue.push(start);
+        distans[start] = 0;
 
-    void bfs(int start, GraphVertex& g){
-        g.graph_queue.push(start);
-        g.distans[start] = 0;
+        while (!graph_queue.empty()) {
+            int v = graph_queue.front(); 
+            graph_queue.pop();
 
-        while (!g.graph_queue.empty()) {
-            int v = g.graph_queue.front(); 
-            g.graph_queue.pop();
-
-            for (int vertex : g.graph[v]) {
+            for (auto& vertex : g.pair_graph[v]) {
                 
-                if (g.distans[vertex] == -1) {
-                    g.graph_queue.push(vertex);
-                    g.distans[vertex] = g.distans[v] + 1;
+                if (distans[vertex.first] == -1) {
+                    graph_queue.push(vertex.first);
+                    distans[vertex.first] = distans[v] + 1;
                 }
             }
         }
     }
-    // I don't see anything worng with this function. It's alright!
-    // info: As with the previous function, 
-    // assigning this time distance before using the function is needed
-    
+
     void dijkstra(){
     }
     
-    void weight(int first, int second, GraphVertex& g){
+    void weight(int first, int second, Graph& g, bool direct){
 
         // Algorithm assigning weight based on tags related to articles
 
@@ -85,26 +78,36 @@ namespace GraphTools {
         int only_a = g.info[first].tags.size() - common;
         // Value of the uncommon tags from article A
 
-        g.graph_weight[first][second] = common - only_a - only_b;
-        // Value of how many points an article has
-        // when tags are similar to each other
-        // first - vertex of graph
-        // second - neighbour of the vertex
-        // question: to not waste the energy and time,
-        // can't we assign the points to the neighbour
-        // like 'g.graph_weight[second][first] = common - only_a - only_b;'
+        for (auto& edge : g.pair_graph[first]) {
+            if (edge.first == second) {
+                edge.second = common - only_a - only_b;
+                break;
+            }
+        }
+        
+        if (!g.direct) {
+            for (auto& edge : g.pair_graph[second]) {
+                if (edge.first == first) {
+                    edge.second = common - only_a - only_b;
+                    break;
+                }
+            }
+        }
     }
 
-    void fillWeight(GraphVertex& g){
+    void fillWeight(Graph& g){
         for (int x = 0; x < g.pair_graph.size(); x++) {
             // For each vertex of graph is doing 'for loop'
             for (auto& pair : g.pair_graph[x]) {
                 // It gets the pair container to pair variable
 
                 int y = pair.first;
-                // Variable 'y' takes the first value from pair
+                // Variable 'y' takes the neighbour number
 
-                GraphTools::weight(x, y, g);
+                if (!g.direct && x > y) continue;   
+                // pomiń duplikat
+
+                weight(x, y, g, g.direct);
                 // Execution of 'weight()' function to fill up the weight
             }
         }
@@ -112,7 +115,15 @@ namespace GraphTools {
 }
 
 int main(){
-    
+    Graph graph;
+    vector<int> visited(graph.pair_graph.size(), -1);
+    vector<int> distans(graph.pair_graph.size(), -1);
+    queue<int> graph_queue;
+
+
+    json j;
+    std::cin >> j;  // poprawne wczytanie z stdin
+    std::cout << std::setw(4) << j << std::endl;
     
     return 0;
 }
