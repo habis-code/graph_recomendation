@@ -1,4 +1,5 @@
 #include <queue>
+#include <stdexcept>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -10,81 +11,91 @@
 using namespace std;
 using json = nlohmann::json;
 
+struct valid {
+    std::vector<std::string> errors;
+    std::vector<std::string> cryt_err;
+
+    bool ok() const {
+        return errors.empty();
+    }
+
+    bool build() const {
+        return cryt_err.empty();
+    }
+}; // var => errors | fun bool 'ok'
+
+
 class GraphInfo{
     public:
     vector<string> tags;
     string article_name;
-};
+}; // var => tags, article_name
 
-class Graph{ // class with everything needed for graphs
+class Graph{
     public:
-    vector<GraphInfo> info; // information about graph
-    vector<vector<pair<int, int>>> pair_graph; // graphs with weight
-    bool direct; // is the graph directed or not?
-};
+    vector<GraphInfo> info; 
+    vector<vector<pair<int, int>>> pair_graph; 
+    bool direct; 
+}; // var => info, pair_graph, direct
+
 
 namespace JsonFill {
-    vector<string> Pole = {
+    
+    constexpr std::array<const char*, 5> names = {
         "ArticleName", "Number", "Neighbours", "Tags", "Direct"
     };
     
-    int name_validation(json& data){
-        for (auto name : Pole) {
-            if (data.contains(name)) {
-                std::cerr << "Brakuje pola '" << name << "'" << std::endl;
-                return 1;
-            }
+    void name_validation(const json& data, valid& results){
+        for (const auto& name : names) {
+            if (!data.contains(name)) 
+            results.cryt_err.push_back(string("Brakuje pola: [") + name + "]");
         }
-        return 0;
     }
 
-    int value_validation(json& data){
-        if (!data["ArticleName"].is_string()){
-            std::cerr << "'ArticleName' musi byc stringiem" << std::endl;
-            return 1;
-        }
-        if (!data["Number"].is_number_integer()) {
-            std::cerr << "'Number' musi byc intigerem" << std::endl;
-            return 1;
-        }
-        if (!data["Neighbours"].is_array()) {
-            std::cerr << "'Neighbours' musi byc tablica" << std::endl;
-            return 1;
-        }
-        if (!data["Tags"].is_array()) {
-            std::cerr << "'Tags' musi byc tablica" << std::endl;
-            return 1;
-        } 
-        if (!data["Direct"].is_boolean()) {
-            std::cerr << "'Direct' musi byc boolean" << std::endl;
-            return 1;
-        }
-        return 0;
+    void value_validation(const json& data, valid& results){
+        if (data.contains("ArticleName") && !data.at("ArticleName").is_string())
+            results.errors.push_back("'ArticleName' musi byc stringiem");
+
+        if (data.contains("Number") && !data.at("Number").is_number_integer()) 
+            results.errors.push_back("'Number' musi byc intigerem");
+
+        if (data.contains("Neighbours") && !data.at("Neighbours").is_array()) 
+            results.errors.push_back("'Neighbours' musi byc tablica");
+
+        if (data.contains("Tags") && !data.at("Tags").is_array()) 
+            results.errors.push_back("'Tags' musi byc tablica");
+
+        if (data.contains("Direct") && !data.at("Direct").is_boolean()) 
+            results.errors.push_back("'Direct' musi byc boolean");
     }
 
-    int validation(Graph& g, string json_file){
+    valid validation(const string json_file){
         ifstream file(json_file);
 
+        valid results;
         string line;
         json data;
 
-        try {
-            file >> data;  // parsowanie
-        } catch (json::parse_error& e) {
-            std::cerr << "Blad parsowania JSON: " << e.what() << std::endl;
-            return 1;
-        }
-
-        if (name_validation(data) != 0)
-            return 1;
-        if (value_validation(data) != 0)
-            return 1;
+        if (!file) throw runtime_error("Nie można otworzyć pliku");
         
+        file >> data;
 
-        return 0;
+        name_validation(data, results);
+        if (!results.cryt_err.empty()) return results;
+        value_validation(data, results);
+
+        return results;
     }
 }
 
+// if (results.ok() == true) {
+//     cout << "Walidacja zakończona POZYTYWNIE" << endl;
+// } else {
+//     cout << "UWAGA Walidacja zakończona NEGATYNIE \n\n Rodzaje błędów:\n" << endl;
+//     for (auto err : results.errors) {
+//         cout << err << endl;
+//     }
+// }
 namespace GraphTools {
 
     void dfs(int start, Graph& g, vector<int>& visited){
