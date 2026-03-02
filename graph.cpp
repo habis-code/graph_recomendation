@@ -23,6 +23,68 @@ class Graph{ // class with everything needed for graphs
     bool direct; // is the graph directed or not?
 };
 
+namespace JsonFill {
+    vector<string> Pole = {
+        "ArticleName", "Number", "Neighbours", "Tags", "Direct"
+    };
+    
+    int name_validation(json& data){
+        for (auto name : Pole) {
+            if (data.contains(name)) {
+                std::cerr << "Brakuje pola '" << name << "'" << std::endl;
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    int value_validation(json& data){
+        if (!data["ArticleName"].is_string()){
+            std::cerr << "'ArticleName' musi byc stringiem" << std::endl;
+            return 1;
+        }
+        if (!data["Number"].is_number_integer()) {
+            std::cerr << "'Number' musi byc intigerem" << std::endl;
+            return 1;
+        }
+        if (!data["Neighbours"].is_array()) {
+            std::cerr << "'Neighbours' musi byc tablica" << std::endl;
+            return 1;
+        }
+        if (!data["Tags"].is_array()) {
+            std::cerr << "'Tags' musi byc tablica" << std::endl;
+            return 1;
+        } 
+        if (!data["Direct"].is_boolean()) {
+            std::cerr << "'Direct' musi byc boolean" << std::endl;
+            return 1;
+        }
+        return 0;
+    }
+
+    int validation(Graph& g, string json_file){
+        ifstream file(json_file);
+
+        string line;
+        json data;
+
+        try {
+            file >> data;  // parsowanie
+        } catch (json::parse_error& e) {
+            std::cerr << "Blad parsowania JSON: " << e.what() << std::endl;
+            return 1;
+        }
+
+        if (name_validation(data) != 0)
+            return 1;
+        if (value_validation(data) != 0)
+            return 1;
+        
+
+        return 0;
+    }
+}
+
 namespace GraphTools {
 
     void dfs(int start, Graph& g, vector<int>& visited){
@@ -119,11 +181,6 @@ int main(){
     vector<int> visited(graph.pair_graph.size(), -1);
     vector<int> distans(graph.pair_graph.size(), -1);
     queue<int> graph_queue;
-
-
-    json j;
-    std::cin >> j;  // poprawne wczytanie z stdin
-    std::cout << std::setw(4) << j << std::endl;
     
     return 0;
 }
