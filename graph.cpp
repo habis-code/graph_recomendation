@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <queue>
 #include <stdexcept>
 #include <string>
@@ -24,7 +25,6 @@ struct Valid {
     }
 };
 
-
 struct GraphInfo{
     vector<string> tags;
     string article_name;
@@ -35,7 +35,6 @@ struct Graph{
     vector<vector<pair<int, int>>> pair_graph; 
     bool direct; 
 };
-
 
 namespace JsonFill {
     
@@ -98,8 +97,62 @@ namespace JsonFill {
             }
             typesValidation(article, results, i);
         }
+
+        unordered_set<int> numbers;
+        for (const auto& element : data) 
+            numbers.insert(element["Number"].get<int>());
+
+        for (size_t i = 0; i < data.size(); i++) {
+            if (!numbers.count(i)) {
+                results.crytical_errors.push_back(
+                    "Numery wierzchołków muszą być kolejne od 0! Brakuje wierzchołka nr. " + to_string(i)
+                );
+            }
+        }
+
         return results;
     } 
+
+    bool checkErrors(const Valid& results){
+        if (results.ok()) {
+            cout << "Configuration's values - ok\n" << endl;
+        } else {
+            cout << "Found some errors!\n Because of this graph may doesn't work.\n Errors:\n";
+            for (const auto e : results.errors) {
+                cout << e ;
+            }
+        }
+        if (results.build()) return false;
+        return true; 
+    }
+
+    Graph buildGraph(const string& json_file){
+        Valid results = validation(json_file);
+        if (checkErrors(results)) throw runtime_error("Json File is corrupted!");
+
+        Graph graph;
+        ifstream file(json_file);
+        json data;
+        file >> data;
+
+        graph.pair_graph.resize(data.size());
+        graph.info.resize(data.size());
+        graph.direct = data[0]["Direct"];
+        
+        for (const auto& element : data) {
+            int idx = element["Number"];
+            graph.info[idx].article_name = element["ArticleName"];
+
+            for (const auto& tag : element["Tags"]) {
+                graph.info[idx].tags.push_back(tag);
+            }
+
+            for (const auto& num : element["Neighbours"]) {
+                graph.pair_graph.at(idx).push_back({num, 0});
+            }
+        }
+        return graph;
+    }
 }
 
 namespace GraphTools {
@@ -200,6 +253,22 @@ int main(){
     // vector<int> distans(graph.pair_graph.size(), -1);
     // queue<int> graph_queue;
     // how to implement the graph
+
+    try {
+        Graph graph = JsonFill::buildGraph("graph_disconnected.json");
+        GraphTools::fillWeight(graph);
+
+        vector<int> visited(graph.pair_graph.size(), -1);
+        GraphTools::dfs(0, graph, visited);
+
+        vector<int> distances(graph.pair_graph.size(), -1);
+        queue<int> graph_queue;
+        GraphTools::bfs(0, graph, distances, graph_queue);
+
+    } catch (const runtime_error& e) {
+        cout << e.what() << endl;
+    }
+
     
     
     return 0;
