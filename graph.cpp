@@ -6,73 +6,76 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <iostream> 
-#include <iomanip>
 
 using namespace std;
 using json = nlohmann::json;
+using validatorMap = std::map<std::string, std::function<bool(const json&)>>;
 
-struct valid {
+struct Valid {
     std::vector<std::string> errors;
-    std::vector<std::string> cryt_err;
+    std::vector<std::string> crytical_errors;
 
     bool ok() const {
         return errors.empty();
     }
 
     bool build() const {
-        return cryt_err.empty();
+        return crytical_errors.empty();
     }
-}; // var => errors | fun bool 'ok'
+};
 
 
-class GraphInfo{
-    public:
+struct GraphInfo{
     vector<string> tags;
     string article_name;
-}; // var => tags, article_name
+};
 
-class Graph{
-    public:
+struct Graph{
     vector<GraphInfo> info; 
     vector<vector<pair<int, int>>> pair_graph; 
     bool direct; 
-}; // var => info, pair_graph, direct
+};
 
 
 namespace JsonFill {
     
-    constexpr std::array<const char*, 5> names = {
-        "ArticleName", "Number", "Neighbours", "Tags", "Direct"
+    const validatorMap validators = {
+        {"ArticleName", [](const json& j){ return j.is_string(); }},
+        {"Number",      [](const json& j){ return j.is_number_integer(); }},
+        {"Neighbours",  [](const json& j){ 
+            if (!j.is_array()) return false;
+            for (const auto& el : j)
+                if (!el.is_number_integer()) return false;
+            return true;
+        }},
+        {"Tags",        [](const json& j){ 
+            if (!j.is_array()) return false;
+            for (const auto& el : j) 
+                if (!el.is_string()) return false;
+            return true;
+            }},
+        {"Direct",      [](const json& j){ return j.is_boolean(); }}
     };
-    
-    void name_validation(const json& data, valid& results){
-        for (const auto& name : names) {
-            if (!data.contains(name)) 
-            results.cryt_err.push_back(string("Brakuje pola: [") + name + "]");
+
+    void typesValidation(const json& article, Valid& results, size_t i){
+        for (const auto& [key, value] : validators) {
+            if (!article.contains(key)) {
+                results.crytical_errors.push_back(
+                    "Brakuje pola: " + key + "w obiekcie nr." + to_string(i) + 
+                    "\nNie można zbudować grafu");
+                continue;
+            }
+            if (!value(article.at(key))) {
+                results.errors.push_back("Niewłaściwy typ pola: " + key + "w obiekcie nr. " + to_string(i) +
+                " mogą wystąpić błędy!\n Sprzwdź dokumentacje o tworzeniu pliku json do budowania grafów");
+            }
         }
     }
 
-    void value_validation(const json& data, valid& results){
-        if (data.contains("ArticleName") && !data.at("ArticleName").is_string())
-            results.errors.push_back("'ArticleName' musi byc stringiem");
-
-        if (data.contains("Number") && !data.at("Number").is_number_integer()) 
-            results.errors.push_back("'Number' musi byc intigerem");
-
-        if (data.contains("Neighbours") && !data.at("Neighbours").is_array()) 
-            results.errors.push_back("'Neighbours' musi byc tablica");
-
-        if (data.contains("Tags") && !data.at("Tags").is_array()) 
-            results.errors.push_back("'Tags' musi byc tablica");
-
-        if (data.contains("Direct") && !data.at("Direct").is_boolean()) 
-            results.errors.push_back("'Direct' musi byc boolean");
-    }
-
-    valid validation(const string json_file){
+    Valid validation(const string& json_file){
         ifstream file(json_file);
 
-        valid results;
+        Valid results;
         string line;
         json data;
 
@@ -80,22 +83,25 @@ namespace JsonFill {
         
         file >> data;
 
-        name_validation(data, results);
-        if (!results.cryt_err.empty()) return results;
-        value_validation(data, results);
+        if (!data.is_array()) {
+            results.crytical_errors.push_back("Plik główny musi być tablicą obiektów.");
+            return results;
+        }
+        for (size_t i = 0; i < data.size(); ++i) {
+            const auto& article = data[i];
 
+            if (!article.is_object()) {
+                results.crytical_errors.push_back(
+                    "Element nr " + std::to_string(i) + " nie jest obiektem."
+                );
+                continue;
+            }
+            typesValidation(article, results, i);
+        }
         return results;
-    }
+    } 
 }
 
-// if (results.ok() == true) {
-//     cout << "Walidacja zakończona POZYTYWNIE" << endl;
-// } else {
-//     cout << "UWAGA Walidacja zakończona NEGATYNIE \n\n Rodzaje błędów:\n" << endl;
-//     for (auto err : results.errors) {
-//         cout << err << endl;
-//     }
-// }
 namespace GraphTools {
 
     void dfs(int start, Graph& g, vector<int>& visited){
@@ -106,9 +112,9 @@ namespace GraphTools {
         }
     } 
     
-    void bfs(int start, Graph& g, vector<int>& distans, queue<int>& graph_queue){ 
+    void bfs(int start, Graph& g, vector<int>& distances, queue<int>& graph_queue){ 
         graph_queue.push(start);
-        distans[start] = 0;
+        distances[start] = 0;
 
         while (!graph_queue.empty()) {
             int v = graph_queue.front(); 
@@ -116,15 +122,16 @@ namespace GraphTools {
 
             for (auto& vertex : g.pair_graph[v]) {
                 
-                if (distans[vertex.first] == -1) {
+                if (distances[vertex.first] == -1) {
                     graph_queue.push(vertex.first);
-                    distans[vertex.first] = distans[v] + 1;
+                    distances[vertex.first] = distances[v] + 1;
                 }
             }
         }
     }
 
     void dijkstra(){
+        throw runtime_error("not implemented");
     }
     
     void weight(int first, int second, Graph& g, bool direct){
@@ -169,7 +176,7 @@ namespace GraphTools {
     }
 
     void fillWeight(Graph& g){
-        for (int x = 0; x < g.pair_graph.size(); x++) {
+        for (size_t x = 0; x < g.pair_graph.size(); x++) {
             // For each vertex of graph is doing 'for loop'
             for (auto& pair : g.pair_graph[x]) {
                 // It gets the pair container to pair variable
@@ -188,10 +195,12 @@ namespace GraphTools {
 }
 
 int main(){
-    Graph graph;
-    vector<int> visited(graph.pair_graph.size(), -1);
-    vector<int> distans(graph.pair_graph.size(), -1);
-    queue<int> graph_queue;
+    // Graph graph;
+    // vector<int> visited(graph.pair_graph.size(), -1);
+    // vector<int> distans(graph.pair_graph.size(), -1);
+    // queue<int> graph_queue;
+    // how to implement the graph
+    
     
     return 0;
 }

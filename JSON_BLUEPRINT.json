@@ -1,7 +1,14 @@
-{
-    "ArticleName": "Iran's problems",
+[{
+    "ArticleName": "Name of the article",
     "Number": 1,
     "Neighbours": [0,3,5],
-    "Tags": ["war", "politics"],
-    "Direct": "False"
+    "Tags": ["tag1", "tag2"],
+    "Direct": false
+},{
+    "ArticleName": "Name of the next article",
+    "Number": 4,
+    "Neighbours": [1, 5, 2],
+    "Tags": ["tag1", "tag5", "tag4"],
+    "Direct": false
 }
+]
