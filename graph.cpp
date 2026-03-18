@@ -1,5 +1,4 @@
 #include <cstddef>
-#include <queue>
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
