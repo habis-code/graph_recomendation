@@ -1,0 +1,37 @@
+[
+  {
+    "ArticleName": "The Rise of Quantum Computing",
+    "Number": 0,
+    "Tags": ["technology", "science", "computing"]
+  },
+  {
+    "ArticleName": "AI Transforms Healthcare",
+    "Number": 1,
+    "Tags": ["AI", "medicine", "technology"]
+  },
+  {
+    "ArticleName": "Mars Colony Plans Unveiled",
+    "Number": 2,
+    "Tags": ["space", "science", "exploration"]
+  },
+  {
+    "ArticleName": "Global Climate Summit 2026",
+    "Number": 3,
+    "Tags": ["climate", "politics", "environment"]
+  },
+  {
+    "ArticleName": "Next-Gen Battery Breakthrough",
+    "Number": 4,
+    "Tags": ["technology", "energy", "science"]
+  },
+  {
+    "ArticleName": "Ocean Microplastics Crisis",
+    "Number": 5,
+    "Tags": ["environment", "science", "ecology"]
+  },
+  {
+    "ArticleName": "Fusion Energy Goes Commercial",
+    "Number": 6,
+    "Tags": ["energy", "technology", "science"]
+  }
+]
